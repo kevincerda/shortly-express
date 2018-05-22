@@ -2,6 +2,8 @@ var express = require('express');
 var util = require('./lib/utility');
 var partials = require('express-partials');
 var bodyParser = require('body-parser');
+var sessions = require('express-session');
+var bcrypt = require('bcrypt-nodejs');
 
 
 var db = require('./app/config');
@@ -21,23 +23,104 @@ app.use(bodyParser.json());
 // Parse forms (signup/login)
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
-
+app.use(sessions({
+  secret: 'keyboard cat',  
+  resave: false,
+  saveUninitalized: false,
+}))
 
 app.get('/', 
 function(req, res) {
-  res.render('index');
+  if (req.session.user) {
+    res.render('index');
+  } else {
+    res.redirect('login');
+  }
 });
+
+app.get('/login',
+ function(req, res) {
+   res.render('login');
+ });
+
+ app.post('/login',
+ function(req, res) {
+   console.log(req.body);
+   var username = req.body.username;
+   var password = req.body.password;
+   db.knex('users')
+     .where({ username: username})
+     .select('password')
+     .then(result => {
+       var pass = result[0].password;
+       bcrypt.compare(password, pass, function(err, data) {
+         if (err) {
+           console.log("failed to login")
+           res.render('login');
+         } else {
+           req.session.user = username;
+           res.setHeader('Location', '/');
+           console.log('Successfully logged in', req.session);
+           res.render('index');
+         }
+       }) 
+     })
+     .catch(err => {
+       res.redirect('/login');
+     })
+ });
+ 
+app.get('/signup',
+ function(req, res) {
+   res.render('signup');
+ });
+
+app.post('/signup',
+ function(req, res) {
+   var username = req.body.username;
+   var password = req.body.password;
+   bcrypt.genSalt(10, function(err, salt) {
+     bcrypt.hash(password, salt, null, function(err, hash) {
+       console.log(hash);
+       if (err) {
+         console.log('Error in signup...', err);
+       }
+       Users.create({
+         username: username,
+         password: hash
+       });
+       req.session.user = username;
+       res.setHeader('Location', '/');
+       res.render('index');
+      //  console.log('Check header location', res.headers.location);
+     });
+   });
+   
+ });
+
+app.get('/logout', 
+  function(req,res) {
+    console.log(req.session.user);
+    req.session.destroy();
+    res.redirect('login');
+ });
 
 app.get('/create', 
 function(req, res) {
-  res.render('index');
+  if (!req.session.user) {
+    res.redirect('login');
+  } 
 });
 
 app.get('/links', 
 function(req, res) {
-  Links.reset().fetch().then(function(links) {
-    res.status(200).send(links.models);
-  });
+  if (!req.session.user) {
+    res.redirect('login');
+  } else {
+    Links.reset().fetch().then(function(links) {
+      res.status(200).send(links.models);
+    });
+  }
 });
 
 app.post('/links', 
