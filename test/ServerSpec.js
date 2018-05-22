@@ -255,7 +255,7 @@ describe('', function() {
 
   describe('Account Creation:', function() {
 
-    it('Signup creates a user record', function(done) {
+    it('Signup creates a user record and encrypt password', function(done) {
       var options = {
         'method': 'POST',
         'uri': 'http://127.0.0.1:4568/signup',
@@ -273,6 +273,23 @@ describe('', function() {
               var user = res[0]['username'];
             }
             expect(user).to.equal('Svnh');
+            done();
+          }).catch(function(err) {
+            throw {
+              type: 'DatabaseError',
+              message: 'Failed to create test setup data'
+            };
+          });
+      });
+
+      request(options, function(error, res, body) {
+        db.knex('users')
+          .where('username', '=', 'Svnh')
+          .then(function(res) {
+            if (res[0] && res[0]['username']) {
+              var user = res[0]['password'];
+            }
+            expect(password).to.not.equal('Svnh');
             done();
           }).catch(function(err) {
             throw {
@@ -328,6 +345,18 @@ describe('', function() {
         expect(res.headers.location).to.equal('/');
         done();
       });
+      
+      it('Logs out current user', function(done) {
+      var options = {
+        'method': 'POST',
+        'uri': 'http://127.0.0.1:4568/logout'
+      };
+
+      requestWithSession(options, function(error, req, body) {
+        expect(req.session).to.equal(undefined);
+        done();
+      });
+    });
     });
 
     it('Users that do not exist are kept on login page', function(done) {
@@ -345,6 +374,22 @@ describe('', function() {
         done();
       });
     });
+
+    // it('Logs out current user', function(done) {
+    //   var options = {
+    //     'method': 'POST',
+    //     'uri': 'http://127.0.0.1:4568/logout',
+    //     'json': {
+    //       'username': 'Fred',
+    //       'password': 'Fred'
+    //     }
+    //   };
+
+    //   requestWithSession(options, function(error, req, body) {
+    //     expect(req.session).to.equal(undefined);
+    //     done();
+    //   });
+    // });
 
   }); // 'Account Login'
 
