@@ -29,13 +29,9 @@ app.use(sessions({
   saveUninitalized: false,
 }))
 
-app.get('/', 
+app.get('/', util.checkUser, 
 function(req, res) {
-  if (req.session.user) {
     res.render('index');
-  } else {
-    res.redirect('login');
-  }
 });
 
 app.get('/login',
@@ -105,22 +101,16 @@ app.get('/logout',
     res.redirect('login');
  });
 
-app.get('/create', 
+app.get('/create', util.checkUser,  
 function(req, res) {
-  if (!req.session.user) {
-    res.redirect('login');
-  } 
+  res.redirect('/');
 });
 
-app.get('/links', 
+app.get('/links', util.checkUser,
 function(req, res) {
-  if (!req.session.user) {
-    res.redirect('login');
-  } else {
-    Links.reset().fetch().then(function(links) {
-      res.status(200).send(links.models);
-    });
-  }
+  Links.reset().fetch().then(function(links) {
+    res.status(200).send(links.models);
+  });
 });
 
 app.post('/links', 
